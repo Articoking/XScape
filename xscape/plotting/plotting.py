@@ -4,9 +4,10 @@ from cartopy.mpl.geoaxes import GeoAxes
 
 import pandas as pd
 
-import xscape
-
-def plot_points(points: pd.DataFrame, ax:GeoAxes = None) -> None:
+def plot_points(
+    points: pd.DataFrame,
+    ax:GeoAxes = None
+    ) -> None:
     if ax is None:
         ax = plt.gca()
     

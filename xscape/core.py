@@ -6,9 +6,11 @@ import numpy as np
 import copernicusmarine as cmems
 from tqdm import tqdm
 
-import xscape
-
-def generate_points(n_points: int, lon_range: tuple, lat_range: tuple) -> pd.DataFrame:
+def generate_points(
+    n_points: int,
+    lon_range: tuple,
+    lat_range: tuple
+    ) -> pd.DataFrame:
     """
     Generates a `n_points`-long DataFrame with randomly selected geographical points in the specified
     longitude and latitude ranges.
@@ -23,7 +25,11 @@ def generate_points(n_points: int, lon_range: tuple, lat_range: tuple) -> pd.Dat
     })
     return points
 
-def get_request_extent(points: pd.DataFrame, seascape_size: float, gridsize: float):
+def get_request_extent(
+    points: pd.DataFrame,
+    seascape_size: float,
+    gridsize: float
+    ) -> dict:
     # Sizes in degrees
     return {
     'maximum_latitude': points['lat'].max() + gridsize + seascape_size/2,
@@ -86,9 +92,14 @@ def get_gridcenter_points(
 def create_xscp_da(
     points: pd.DataFrame,
     seascape_size: float,
-    gridsize: float,
-    var_da:xr.DataArray
+    var_da:xr.DataArray,
     ) -> xr.DataArray:
+
+    # Calculate gridsize
+    lat_gridsize = np.diff(var_da.lat.values).mean()
+    lon_gridsize = np.diff(var_da.lon.values).mean()
+    # TODO: Allow different sizes in lat and lon
+    gridsize = (lat_gridsize + lon_gridsize) / 2
 
     c_points = get_gridcenter_points(points, var_da)
     
@@ -96,15 +107,18 @@ def create_xscp_da(
     n_ss_gridpoints = math.ceil(seascape_size // gridsize)
     if not (n_ss_gridpoints % 2): n_ss_gridpoints += 1 # Must be odd to have a center pixel.
 
+    # Calculate values in relative seascape grid
+    half_range = (n_ss_gridpoints // 2) * gridsize
+    ss_rlat_vals = np.linspace(-half_range, half_range, n_ss_gridpoints)
+    ss_rlon_vals = np.linspace(-half_range, half_range, n_ss_gridpoints)
+
     # Calculate values of seascape and
     # stack them in a seascape_idx dimension
 
-    xscp_data = np.empty(shape=(n_seascapes, n_ss_gridpoints, n_ss_gridpoints))
+    # xscp_data = np.empty(shape=(n_seascapes, n_ss_gridpoints, n_ss_gridpoints))
+    ss_list = []
 
-    pbar = tqdm(c_points.iterrows(), total=n_seascapes)
-    # TODO: Add description to the progressbar
-
-    for ss_idx, c_point in pbar:
+    for ss_idx, c_point in c_points.iterrows():
         c_point_lon = c_point['lon']
         c_point_lat = c_point['lat']
         seascape = var_da.sel(
@@ -121,16 +135,37 @@ def create_xscp_da(
             # TODO: Add error handling for empty seascapes
             raise NotImplementedError(f"Empty seascape for index {ss_idx}")
         else:
-            xscp_data[ss_idx,:,:] = seascape
+            # Change global coords to relative ss coords
+            seascape = seascape.assign_coords(
+                lat=ss_rlat_vals,
+                lon=ss_rlon_vals
+            )
+            ss_list.append(seascape)
+
+
+    xscp_data = xr.concat(
+        ss_list, 
+        pd.RangeIndex(
+            n_seascapes,
+            name='seascape_idx'
+            )
+        )
 
     # Construct DataArray
     xscp_da = xr.DataArray(
         data=xscp_data,
         coords={
+            # Center pixel coordinates for each ss
             'c_lon': ('seascape_idx', c_points['lon']),
             'c_lat': ('seascape_idx', c_points['lat']),
-            'ss_lon': (('seascape_idx','ss_lon'), np.empty(shape=(n_seascapes, n_ss_gridpoints))),
-            'ss_lat': (('seascape_idx','ss_lat'), np.empty(shape=(n_seascapes, n_ss_gridpoints)))
+            # Relative lat/lon with center pixel at (0,0)
+            'ss_rlon': ('ss_lon', ss_rlon_vals),
+            'ss_rlat': ('ss_lat', ss_rlat_vals),
+            # Real-world coordinates for each pixel in each ss
+            'ss_lon': (('seascape_idx','ss_lon'),\
+                       c_points["lat"].values[:, np.newaxis] + ss_rlat_vals),
+            'ss_lat': (('seascape_idx','ss_lat'),\
+                       c_points["lon"].values[:, np.newaxis] + ss_rlon_vals),
         },
         dims=['seascape_idx', 'ss_lon', 'ss_lat'],
         name=f"{var_da.name}"
