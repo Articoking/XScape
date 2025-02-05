@@ -6,6 +6,8 @@ import numpy as np
 import copernicusmarine as cmems
 from tqdm import tqdm
 
+GLORYS_GRIDSIZE = 1/12
+
 def generate_points(
     n_points: int,
     lon_range: tuple,
@@ -39,10 +41,11 @@ def get_request_extent(
     }
 
 def get_glorys_da(
+    points: pd.DataFrame,
+    seascape_size: float,
     variables: list,
     start_datetime,
     end_datetime,
-    extent: dict,
     ) -> xr.Dataset:
     """
     Performs the data request to get the GLORYS data corresponding
@@ -51,11 +54,16 @@ def get_glorys_da(
 
     Returns a `xr.Dataset` object
     """
-
+    gridsize = GLORYS_GRIDSIZE
+    extent = get_request_extent(
+        points,
+        seascape_size,
+        gridsize
+        )
 
     data_request = {
     'dataset_id': 'cmems_mod_glo_phy_my_0.083deg_P1D-m',
-    'variables': variables, # ['zos', 'thetao', 'so', 'mlotst']
+    'variables': variables,
     'start_datetime': start_datetime,
     'end_datetime' : end_datetime,
     'maximum_latitude': extent['maximum_latitude'],
