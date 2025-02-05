@@ -40,7 +40,7 @@ def get_request_extent(
     'minimum_longitude': points['lon'].min() - gridsize - seascape_size/2,
     }
 
-def get_glorys_da(
+def get_glorys_ds(
     points: pd.DataFrame,
     seascape_size: float,
     variables: list,
@@ -112,7 +112,7 @@ def create_xscp_da(
     c_points = get_gridcenter_points(points, var_da)
     
     n_seascapes = c_points.shape[0]
-    n_ss_gridpoints = math.ceil(seascape_size // gridsize)
+    n_ss_gridpoints = math.ceil(seascape_size / gridsize)
     if not (n_ss_gridpoints % 2): n_ss_gridpoints += 1 # Must be odd to have a center pixel.
 
     # Calculate values in relative seascape grid
@@ -123,7 +123,6 @@ def create_xscp_da(
     # Calculate values of seascape and
     # stack them in a seascape_idx dimension
 
-    # xscp_data = np.empty(shape=(n_seascapes, n_ss_gridpoints, n_ss_gridpoints))
     ss_list = []
 
     for ss_idx, c_point in c_points.iterrows():
@@ -180,4 +179,4 @@ def create_xscp_da(
         # TODO: Add attrs
     )
 
-    return xscp_da
+    return xscp_da.chunk("auto")
