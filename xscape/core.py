@@ -7,7 +7,6 @@ import xarray as xr
 import pandas as pd
 import numpy as np
 import copernicusmarine as cmems
-from tqdm import tqdm
 
 GLORYS_GRIDSIZE = 1/12
 
@@ -203,7 +202,8 @@ def create_xscp_da(
     
     n_seascapes = c_points.shape[0]
     n_ss_gridpoints = math.ceil(seascape_size / gridsize)
-    if not (n_ss_gridpoints % 2): n_ss_gridpoints += 1 # Must be odd to have a center pixel.
+    if not (n_ss_gridpoints % 2):
+        n_ss_gridpoints += 1 # Must be odd to have a center pixel.
 
     # Calculate values in relative seascape grid
     half_range = (n_ss_gridpoints // 2) * gridsize
