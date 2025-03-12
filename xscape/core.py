@@ -1,4 +1,7 @@
+"""Core functionality of XScape."""
+
 import math
+from typing import List
 
 import xarray as xr
 import pandas as pd
@@ -14,8 +17,20 @@ def generate_points(
     lat_range: tuple
     ) -> pd.DataFrame:
     """
-    Generates a `n_points`-long DataFrame with randomly selected geographical points in the specified
-    longitude and latitude ranges.
+    Randomly generates a series of points.
+
+    Parameters
+    ----------
+    n_points : int
+        The number of points to generate.
+    lon_range, lat_range : tuple
+        Lat. and lon. ranges defining the area in which to generate points.
+
+    Returns
+    -------
+    points : pd.DataFrame
+        A pandas DataFrame object with "lat" and "lon" columns containing the
+        points as rows.
     """
     min_lon, max_lon = lon_range
     min_lat, max_lat = lat_range
@@ -32,6 +47,27 @@ def get_request_extent(
     seascape_size: float,
     gridsize: float
     ) -> dict:
+    """
+    Calculates the area needed to cover all points and their seascapes.
+
+    Parameters
+    ----------
+    points : pd.DataFrame
+        DataFrame of points as rows with "lat" and "lon" columns.
+    seascape_size : float
+        Size (in degrees) of the seascape around each point.
+    gridsize : float
+        Size (in degrees) of each pixel in the original background field.
+
+    Returns
+    -------
+    dict
+        `copernicusmarine`-style dictionary of max/min lat/lon.
+
+    See Also
+    --------
+    generate_points
+    """
     # Sizes in degrees
     return {
     'maximum_latitude': points['lat'].max() + gridsize + seascape_size/2,
@@ -43,17 +79,32 @@ def get_request_extent(
 def get_glorys_ds(
     points: pd.DataFrame,
     seascape_size: float,
-    variables: list,
-    start_datetime,
-    end_datetime,
+    variables: List[str],
+    start_datetime: str,
+    end_datetime: str,
     ) -> xr.Dataset:
     """
-    Performs the data request to get the GLORYS data corresponding
-    to the selected variables in the geographical extent, for the
-    specified date.
+    Gets GLORYS data for the specified region/time.
 
-    Returns a `xr.Dataset` object
+    Parameters
+    ----------
+    points : pd.DataFrame
+        DataFrame of points as rows with "lat" and "lon" columns.
+    seascape_size : float
+        Size (in degrees) of the seascape around each point.
+    variables : list of str
+        GLORYS variable names to include in the returned data.
+    start_datetime : str
+        Earliest date for which to get data.
+    end_datetime : str
+        Latest date for which to get data.
+
+    Returns
+    -------
+    xr.Dataset
+        Dataset in the same format as that returned by `copernicusmarine`.
     """
+
     gridsize = GLORYS_GRIDSIZE
     extent = get_request_extent(
         points,
@@ -83,10 +134,25 @@ def get_gridcenter_points(
     var_da:xr.DataArray
     ) -> pd.DataFrame:
     """
-    Returns a DataFrame with a list of (lat,lon) points, which correspond to the coordinates of the
+    Gets the corresponding pixel coordinates for a series of points.
+
+    Returns a DataFrame with points as rows, which correspond to the coordinates of the
     pixels of `var_da` in which each point in `points` is.
+
+    Parameters
+    ----------
+    points : pd.DataFrame
+        DataFrame of points as rows with "lat" and "lon" columns.
+    var_da : xr.DataArray
+        Gridded background field on whose grid to project the points.
+
+    Returns
+    -------
+    pd.DataFrame
+        A DataFrame in the same format as `points` with the center coordinates
+        of pixels in `var_da`
     """
-    
+
     # Function to find the nearest grid point
     def find_nearest(value, grid):
         return grid[np.abs(grid - value).argmin()]
@@ -102,6 +168,30 @@ def create_xscp_da(
     seascape_size: float,
     var_da:xr.DataArray,
     ) -> xr.DataArray:
+    """
+    Crops and packages together a series of seascapes.
+
+    Parameters
+    ----------
+    points : pd.DataFrame
+        DataFrame of points as rows with "lat" and "lon" columns.
+    seascape_size : float
+        Size (in degrees) of the seascape around each point.
+    var_da : xr.DataArray
+        Gridded background field from which we extract the seascapes.
+
+    Returns
+    -------
+    xr.DataArray
+        A DataArray indexed by `seascape_idx`, `ss_lon` and `ss_lat`. The latter
+        two coordinates correspond to a relative reference frame centered on
+        each seascape.
+
+    Raises
+    ------
+    NotImplementedError
+        If a seascape is completely empty (e.g. if a point is on land).
+    """
 
     # Calculate gridsize
     lat_gridsize = np.diff(var_da.lat.values).mean()
