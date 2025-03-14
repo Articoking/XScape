@@ -75,7 +75,7 @@ class XScapeDAAccessor:
         closest_point_idx = distances.idxmin()
 
         # Check that `point` actually is in the seascape
-        if False: # distances[closest_point_idx] >= (self.gridsize / np.sqrt(2)):
+        if distances[closest_point_idx] >= (self.gridsize / np.sqrt(2)):
             raise ValueError(
                 "The specified point does not correspond to any seascape."
                 )

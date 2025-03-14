@@ -123,8 +123,11 @@ def calculate_horizontal_gridsize(
         Calculated gridsize (in degrees)
     """
 
-    lat_gridsize = np.diff(var_da.lat.values).mean()
-    lon_gridsize = np.diff(var_da.lon.values).mean()
+    lat_coord = "ss_lat" if "ss_lat" in var_da.coords else "lat"
+    lon_coord = "ss_lon" if "ss_lon" in var_da.coords else "lon"
+
+    lat_gridsize = np.diff(var_da[lat_coord].values).mean()
+    lon_gridsize = np.diff(var_da[lon_coord].values).mean()
     # TODO (#2): Allow different sizes in lat and lon
     gridsize = (lat_gridsize + lon_gridsize) / 2
     return gridsize
