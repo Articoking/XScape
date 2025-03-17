@@ -27,6 +27,13 @@ def generate_points(
     """
     min_lon, max_lon = lon_range
     min_lat, max_lat = lat_range
+
+    # See issue #10
+    if min_lon > max_lon or min_lat > max_lat:
+        raise NotImplementedError(
+            "Reverse lat/lon ranges are not yet allowed."
+        )
+
     lats = np.random.uniform(min_lat, max_lat, size=(n_points,))
     lons = np.random.uniform(min_lon, max_lon, size=(n_points,))
     points = pd.DataFrame({
@@ -71,7 +78,7 @@ def get_request_extent(
 
 def get_gridcenter_points(
     points: pd.DataFrame, 
-    var_da:xr.DataArray
+    var_da: xr.DataArray,
     ) -> pd.DataFrame:
     """
     Gets the corresponding pixel coordinates for a series of points.
@@ -103,7 +110,7 @@ def get_gridcenter_points(
     return c_points.drop_duplicates()
 
 def calculate_horizontal_gridsize(
-    var_da: xr.DataArray
+    var_da: xr.DataArray,
     ) -> float:
     """
     Calculates the horizontal pixel size of a gridded DataArray.
