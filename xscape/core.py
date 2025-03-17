@@ -152,7 +152,7 @@ def create_xscp_da(
 
     ss_list = []
 
-    for ss_idx, c_point in c_points.iterrows():
+    for _, c_point in c_points.iterrows():
         c_point_lon = c_point['lon']
         c_point_lat = c_point['lat']
         seascape = var_da.sel(
@@ -165,16 +165,13 @@ def create_xscp_da(
                 c_point_lon+(seascape_size+gridsize)/2
                 )
             )
-        if seascape.size == 0:
-            # TODO: Add error handling for empty seascapes
-            raise NotImplementedError(f"Empty seascape for index {ss_idx}")
-        else:
-            # Change global coords to relative ss coords
-            seascape = seascape.assign_coords(
-                lat=ss_rlat_vals,
-                lon=ss_rlon_vals
-            )
-            ss_list.append(seascape)
+        
+        # Change global coords to relative ss coords
+        seascape = seascape.assign_coords(
+            lat=ss_rlat_vals,
+            lon=ss_rlon_vals
+        )
+        ss_list.append(seascape)
 
 
     xscp_data = xr.concat(
