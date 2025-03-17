@@ -63,7 +63,45 @@ def get_glorys_ds(
             'latitude': 'lat',
             'longitude': 'lon'
         })
-    return glorys_da 
+    return glorys_da
+
+def get_glorys_var(
+    points: pd.DataFrame,
+    seascape_size: float,
+    variable: str,
+    start_datetime: str,
+    end_datetime: str,
+    ) -> xr.Dataset:
+    """
+    Gets GLORYS data *for a single variable* for the specified region/time.
+
+    Parameters
+    ----------
+    points : pd.DataFrame
+        DataFrame of points as rows with "lat" and "lon" columns.
+    seascape_size : float
+        Size (in degrees) of the seascape around each point.
+    variables : list of str
+        GLORYS variable names to include in the returned data.
+    start_datetime : str
+        Earliest date for which to get data.
+    end_datetime : str
+        Latest date for which to get data.
+
+    Returns
+    -------
+    xr.Dataset
+        Dataset in the same format as that returned by `copernicusmarine`.
+    """
+    glorys_da = get_glorys_ds(
+        points = points,
+        seascape_size = seascape_size,
+        variables = [variable],
+        start_datetime = start_datetime,
+        end_datetime = end_datetime
+    )[variable]
+
+    return glorys_da
 
 def create_xscp_da(
     points: pd.DataFrame,
