@@ -9,7 +9,6 @@ import numpy as np
 import copernicusmarine as cmems
 
 import xscape.utils as utils
-from xscape import accessors
 
 GLORYS_GRIDSIZE = 1/12
 
