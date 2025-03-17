@@ -2,8 +2,6 @@
 
 # https://docs.xarray.dev/en/stable/internals/extending-xarray.html
 
-from typing import Self
-
 import numpy as np
 import pandas as pd
 import xarray as xr
