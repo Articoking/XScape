@@ -3,7 +3,7 @@
 from . import accessors
 from .core import get_glorys_ds, get_glorys_var, create_xscp_da
 from .utils import generate_points
-from .plotting import plotting
+from . import plotting
 
 __all__ = [
     "get_glorys_ds",

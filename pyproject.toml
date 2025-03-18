@@ -34,6 +34,14 @@ pytest = "^7.3.1"
 pytest-cov = "^6.0.0"
 ruff = "^0.9.6"
 
+[tool.poetry.group.docs]
+optional = true
+
+[tool.poetry.group.docs.dependencies]
+sphinx = "^8.2.3"
+sphinx-rtd-theme = "^3.0.2"
+myst-parser = "^4.0.1"
+
 # Poe the Poet config
 
 [tool.poe.tasks]

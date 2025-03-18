@@ -1,32 +1,4 @@
-# XScape
-
-![XScape](docs/source/_static/XScape.png)
-
-A Python library for recovering the seascape around a set of geographical points, based on [Xarray](https://github.com/pydata/xarray).
-
-## Why XScape?
-
-XScape can help you whenever you want to add environmental information to georeferenced events.
-The information may come from satellites, numerical models, or any field represented on a latitude/longitude grid.
-
-The library was originally developed as part of the [***PPR Océan & Climat***](https://www.ocean-climat.fr/Le-PPR), a research project funded by the French government.
-
-## Installation
-
-Until the package is officially published, the only way of installing XScape is by cloning the repository.
-Once you have it on your own machine, go into the XScape directory and run  `poetry install`.
-The whole process can be done in three commands:
-
-```bash
-git clone https://github.com/Articoking/XScape.git
-cd XScape
-poetry install
-```
-
-If you want to **contribute to the library,** you will likely want to install the extra developer dependencies.
-To do that, use the `--with dev` option when running the installation.
-
-## Basic usage
+# Quickstart guide
 
 To use XScape, you only need two things:
 
@@ -86,8 +58,4 @@ first_point = points.iloc[0]
 seascape = xscp_da.xscp.ss_sel(first_point)
 ```
 
-For more information on the format of XScape DataArrays refer to the dedicated documentation page (**TODO:** add link).
-
-## Related works
-
-If XScape does not fit your needs, consider taking a look at [`geoenrich`](https://github.com/morand-g/geoenrich/tree/main).
+For more information on the format of XScape DataArrays refer to the [dedicated documentation page](da_format.md).
