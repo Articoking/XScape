@@ -62,7 +62,7 @@ class XScapeDAAccessor:
 
         """
         Euclidean distance. Not accurate for long distances but in this case we
-        would have at most gridsize/sqrt(2) degrees of distance
+        would have at most gridsize/sqrt(2) degrees of distance.
         """
         distances = np.sqrt(
             (self.c_points['lat'] - point['lat'])**2

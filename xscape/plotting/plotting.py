@@ -1,4 +1,4 @@
-"""Plotting functions"""
+"""Plotting functions."""
 
 import matplotlib.pyplot as plt
 import cartopy.crs as ccrs

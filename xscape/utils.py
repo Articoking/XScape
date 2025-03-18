@@ -68,6 +68,10 @@ def get_request_extent(
     --------
     generate_points
     """
+
+    if seascape_size < 0:
+        raise ValueError("seascape_size cannot be negative.")
+    
     # Sizes in degrees
     return {
     'maximum_latitude': points['lat'].max() + gridsize + seascape_size/2,

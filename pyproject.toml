@@ -22,6 +22,9 @@ dependencies = [
 requires = ["poetry-core>=2.0.0,<3.0.0"]
 build-backend = "poetry.core.masonry.api"
 
+[tool.poetry.group.dev]
+optional = true
+
 [tool.poetry.group.dev.dependencies]
 jupyter = "^1.1.1"
 matplotlib = "^3.10.1"
@@ -31,3 +34,10 @@ pytest = "^7.3.1"
 pytest-cov = "^6.0.0"
 ruff = "^0.9.6"
 
+# Poe the Poet config
+
+[tool.poe.tasks]
+lint = "ruff check 'xscape' 'tests'"
+test = "pytest tests/"
+
+all = [{ref="lint"}, {ref="test"}]
