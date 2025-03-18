@@ -126,11 +126,6 @@ def create_xscp_da(
         A DataArray indexed by `seascape_idx`, `ss_lon` and `ss_lat`. The latter
         two coordinates correspond to a relative reference frame centered on
         each seascape.
-
-    Raises
-    ------
-    NotImplementedError
-        If a seascape is completely empty (e.g. if a point is on land).
     """
 
     gridsize = utils.calculate_horizontal_gridsize(var_da)
