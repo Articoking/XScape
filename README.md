@@ -6,7 +6,10 @@ A Python library to recover the seascape around a set of geographical points, ba
 
 ## Why XScape?
 
-**TODO:** write this.
+XScape can help you whenever you want to add environmental information to georeferenced events.
+The information may come from satellites, numerical models, or any field represented on a latitude/longitude grid.
+
+The library was originally developed as part of the [***PPR Océan & Climat***](https://www.ocean-climat.fr/Le-PPR), a research project funded by the French government.
 
 ## Installation
 
@@ -57,7 +60,7 @@ glorys_var = xscp.get_glorys_var(
     'thetao', # Temperature variable name
     start_datetime = "2000-01-01",
     end_datetime = "2000-12-31",
-)
+    )
 
 glorys_var = glorys_var.isel(time=0, depth=0) # See note below
 ```
@@ -84,3 +87,7 @@ seascape = xscp_da.xscp.ss_sel(first_point)
 ```
 
 For more information on the format of XScape DataArrays refer to the dedicated documentation page (**TODO:** add link).
+
+## Related works
+
+If XScape does not fit your needs, consider taking a look at [`geoenrich`](https://github.com/morand-g/geoenrich/tree/main).
