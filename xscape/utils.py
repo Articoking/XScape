@@ -25,17 +25,35 @@ def generate_points(
         A pandas DataFrame object with "lat" and "lon" columns containing the
         points as rows.
     """
+    lat_limit = 90 # Only allow latitudes in [-90, 90]
+    lon_limit = 180 # Only allow longitudes in [-180, 180]
+
     min_lon, max_lon = lon_range
     min_lat, max_lat = lat_range
 
     # See issue #10
-    if min_lon > max_lon or min_lat > max_lat:
-        raise NotImplementedError(
-            "Reverse lat/lon ranges are not yet allowed."
+    if min_lat > max_lat:
+        lat_range = abs(lat_limit - min_lat) + abs(max_lat - lat_limit)
+        rel_lats = np.random.uniform(0, lat_range, size=(n_points,))
+        lats = np.where(
+            rel_lats <= max_lat,
+            rel_lats - lat_limit,
+            rel_lats + min_lat
         )
+    else:
+        lats = np.random.uniform(min_lat, max_lat, size=(n_points,))
 
-    lats = np.random.uniform(min_lat, max_lat, size=(n_points,))
-    lons = np.random.uniform(min_lon, max_lon, size=(n_points,))
+    if min_lon > max_lon:
+        lon_range = abs(lon_limit - min_lon) + abs(max_lon - lon_limit)
+        rel_lons = np.random.uniform(0, lon_range, size=(n_points,))
+        lons = np.where(
+            rel_lons <= max_lon,
+            rel_lons - lon_limit,
+            rel_lons + min_lon
+        )
+    else:
+        lons = np.random.uniform(min_lon, max_lon, size=(n_points,))
+    
     points = pd.DataFrame({
         'lat': lats,
         'lon': lons

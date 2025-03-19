@@ -3,9 +3,9 @@ import pandas as pd
 import xscape as xscp
 import pytest
 
-n_points = 10
+n_points = 50
 min_lat = 0
-max_lat = 10
+max_lat = 45
 min_lon = -90
 max_lon = 90
 
@@ -29,12 +29,15 @@ def test_generate_points():
 
 def test_generate_points_reverse():
     """Test generating with reverse bounds."""
-    with pytest.raises(NotImplementedError):
-        xscp.generate_points(
-            n_points,
-            lon_range=(max_lon, min_lon),
-            lat_range=(max_lat, min_lon),
-        )
+    points = xscp.generate_points(
+        n_points,
+        lon_range=(max_lon, min_lon),
+        lat_range=(max_lat, min_lon),
+    )
+    assert not (
+        (points["lat"].between(min_lat, max_lat, inclusive='neither'))
+        & (points["lon"].between(min_lon, max_lon, inclusive='neither'))
+        ).any() 
 
 def test_get_request_extent(sample_points):
     """Test request extent."""
