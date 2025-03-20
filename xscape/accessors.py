@@ -13,7 +13,10 @@ class XScapeDAAccessor:
     def __init__(self, xarray_obj):
         self._obj = xarray_obj
         self._c_points = None
-        self._gridsize = None
+        if "seascape_gridsize" in xarray_obj.attrs.keys():
+            self._gridsize = xarray_obj.attrs["seascape_gridsize"]
+        else:
+            self._gridsize = None
 
     @property
     def gridsize(self):

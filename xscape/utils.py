@@ -152,8 +152,8 @@ def calculate_horizontal_gridsize(
         Calculated gridsize (in degrees)
     """
 
-    lat_coord = "ss_lat" if "ss_lat" in var_da.coords else "lat"
-    lon_coord = "ss_lon" if "ss_lon" in var_da.coords else "lon"
+    lat_coord = "ss_rlat" if "ss_lat" in var_da.dims else "lat"
+    lon_coord = "ss_rlon" if "ss_lon" in var_da.dims else "lon"
 
     lat_gridsize = np.diff(var_da[lat_coord].values).mean()
     lon_gridsize = np.diff(var_da[lon_coord].values).mean()
@@ -161,3 +161,30 @@ def calculate_horizontal_gridsize(
     gridsize = (lat_gridsize + lon_gridsize) / 2
     return gridsize
 
+def create_empty_seascape(
+    ss_rlon_vals: np.ndarray,
+    ss_rlat_vals: np.ndarray,
+    ) -> xr.DataArray:
+    """
+    Creates an empty seascape according to prescribed relative coordinates.
+
+    Parameters
+    ----------
+    ss_rlon_vals , ss_rlat_vals : np.ndarray
+        Relative grid values.
+
+    Returns
+    -------
+    xr.DataArray
+        Seascape-like DataArray filled with NaN values.
+    """
+    seascape = xr.DataArray(
+        data = np.full((len(ss_rlon_vals), len(ss_rlat_vals)), np.nan),
+        coords = {
+            "lon": ss_rlon_vals,
+            "lat": ss_rlat_vals,
+        },
+        dims = ["lon", "lat"],
+    )
+
+    return seascape

@@ -2,6 +2,7 @@
 
 import math
 from typing import List
+import warnings
 
 import xarray as xr
 import pandas as pd
@@ -152,22 +153,36 @@ def create_xscp_da(
         c_point_lat = c_point['lat']
         seascape = var_da.sel(
             lat=slice(
-                c_point_lat-(seascape_size+gridsize)/2,
-                c_point_lat+(seascape_size+gridsize)/2
+                c_point_lat-(n_ss_gridpoints)*gridsize/2,
+                c_point_lat+(n_ss_gridpoints)*gridsize/2
                 ),
             lon=slice(
-                c_point_lon-(seascape_size+gridsize)/2,
-                c_point_lon+(seascape_size+gridsize)/2
+                c_point_lon-(n_ss_gridpoints)*gridsize/2,
+                c_point_lon+(n_ss_gridpoints)*gridsize/2
                 )
             )
         
-        # Change global coords to relative ss coords
-        seascape = seascape.assign_coords(
-            lat=ss_rlat_vals,
-            lon=ss_rlon_vals
-        )
-        ss_list.append(seascape)
+        try:
+            # Change global coords to relative ss coords
+            seascape = seascape.assign_coords(
+                lat=ss_rlat_vals,
+                lon=ss_rlon_vals
+            )
+            
+        except ValueError:
+            # Add empty seascape to prevent size mismatches later
+            # See issue #7
+            warning_msg = "Creating empty seascape for c_point: "\
+                f"(lat={c_point["lat"]}, lon={c_point["lon"]})." \
+                "This may be due to the corresponding point being outside " \
+                "var_da's grid or too close to its edge."
+            warnings.warn(warning_msg)
+            seascape = utils.create_empty_seascape(
+                ss_rlon_vals=ss_rlon_vals,
+                ss_rlat_vals=ss_rlat_vals,
+            )
 
+        ss_list.append(seascape)
 
     xscp_data = xr.concat(
         ss_list, 
@@ -194,8 +209,11 @@ def create_xscp_da(
                        c_points["lon"].values[:, np.newaxis] + ss_rlon_vals),
         },
         dims=['seascape_idx', 'ss_lon', 'ss_lat'],
-        name=f"{var_da.name}"
+        name=f"{var_da.name}",
         # TODO: Add attrs
+        attrs = {
+            'seascape_gridsize': gridsize # See issue #13
+        },
     )
 
     return xscp_da.chunk("auto")
