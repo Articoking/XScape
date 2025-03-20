@@ -1,6 +1,12 @@
 # Installation
 
-Until the package is officially published, the only way of installing XScape is by cloning the repository.
+Installing XScape is as simple as running:
+
+```bash
+pip install xscape
+```
+
+You may also install the library directly by cloning the repository.
 Once you have it on your own machine, go into the XScape directory and run  `poetry install`.
 The whole process can be done in three commands:
 
