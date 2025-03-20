@@ -23,8 +23,7 @@ cd XScape
 poetry install
 ```
 
-If you want to **contribute to the library,** you will likely want to install the extra developer dependencies.
-To do that, use the `--with dev` option when running the installation.
+If you want to **contribute to the library,** follow the specific [installation instructions](https://xscape.readthedocs.io/en/latest/content/usage/installation.html#developers-and-documentation-writers) in the documentation.
 
 ## Basic usage
 
@@ -86,7 +85,7 @@ first_point = points.iloc[0]
 seascape = xscp_da.xscp.ss_sel(first_point)
 ```
 
-For more information on the format of XScape DataArrays refer to the dedicated documentation page (**TODO:** add link).
+For more information on the format of XScape DataArrays refer to the [dedicated documentation page](https://xscape.readthedocs.io/en/latest/content/usage/da_format.html).
 
 ## Related works
 
