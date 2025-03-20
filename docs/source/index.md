@@ -16,6 +16,7 @@ The library was originally developed as part of the [***PPR Océan & Climat***](
 content/usage/installation.md
 content/usage/quickstart.md
 content/usage/da_format.md
+content/seascape.md
 content/contributing/contributing.md
 content/api.md
 ```
