@@ -1,4 +1,4 @@
-xscape.utils
+﻿xscape.utils
 ============
 
 .. automodule:: xscape.utils
@@ -14,6 +14,7 @@ xscape.utils
       :toctree:
    
       calculate_horizontal_gridsize
+      create_empty_seascape
       generate_points
       get_gridcenter_points
       get_request_extent

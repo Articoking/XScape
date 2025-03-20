@@ -37,7 +37,7 @@ glorys_var = xscp.get_glorys_var(
 glorys_var = glorys_var.isel(time=0, depth=0) # See note below
 ```
 
-**NOTE:** XScape currently has no way of obtaining seascapes with time or depth as dimensions, but that will be added in the future.
+**NOTE:** XScape currently has no way of obtaining seascapes with time or depth dimensions, but that will be added in the future.
 For now, only 2D horizontal maps can be used to create seascapes.
 
 Finally, we create our "XScape DataArray" using the `create_xscp_da()` function:
