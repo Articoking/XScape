@@ -50,19 +50,19 @@ def get_glorys_ds(
         )
 
     data_request = {
-    'dataset_id': 'cmems_mod_glo_phy_my_0.083deg_P1D-m',
-    'variables': variables,
-    'start_datetime': start_datetime,
-    'end_datetime' : end_datetime,
-    'maximum_latitude': extent['maximum_latitude'],
-    'minimum_latitude': extent['minimum_latitude'],
-    'maximum_longitude': extent['maximum_longitude'],
-    'minimum_longitude': extent['minimum_longitude'],
+    "dataset_id": "cmems_mod_glo_phy_my_0.083deg_P1D-m",
+    "variables": variables,
+    "start_datetime": start_datetime,
+    "end_datetime" : end_datetime,
+    "maximum_latitude": extent["maximum_latitude"],
+    "minimum_latitude": extent["minimum_latitude"],
+    "maximum_longitude": extent["maximum_longitude"],
+    "minimum_longitude": extent["minimum_longitude"],
     }
     glorys_da = cmems.open_dataset(**data_request)\
         .rename({
-            'latitude': 'lat',
-            'longitude': 'lon'
+            "latitude": "lat",
+            "longitude": "lon"
         })
     return glorys_da
 
@@ -108,6 +108,7 @@ def create_xscp_da(
     points: pd.DataFrame,
     seascape_size: float,
     var_da:xr.DataArray,
+    seascape_timerange: np.timedelta64 | None = None
     ) -> xr.DataArray:
     """
     Crops and packages together a series of seascapes.
@@ -115,7 +116,8 @@ def create_xscp_da(
     Parameters
     ----------
     points : pd.DataFrame
-        DataFrame of points as rows with "lat" and "lon" columns.
+        DataFrame of points as rows with "lat" and "lon" columns. If
+        `seascape_timerange` is specified it must also have a "time" column.
     seascape_size : float
         Size (in degrees) of the seascape around each point.
     var_da : xr.DataArray
@@ -130,44 +132,70 @@ def create_xscp_da(
     """
 
     gridsize = utils.calculate_horizontal_gridsize(var_da)
-
-    c_points = utils.get_gridcenter_points(points, var_da)
-    
-    n_seascapes = c_points.shape[0]
     n_ss_gridpoints = math.ceil(seascape_size / gridsize)
     if not (n_ss_gridpoints % 2):
         n_ss_gridpoints += 1 # Must be odd to have a center pixel.
-
+    c_points = utils.get_gridcenter_points(points, var_da)
+    
     # Calculate values in relative seascape grid
     half_range = (n_ss_gridpoints // 2) * gridsize
     ss_rlat_vals = np.linspace(-half_range, half_range, n_ss_gridpoints)
     ss_rlon_vals = np.linspace(-half_range, half_range, n_ss_gridpoints)
 
+    if seascape_timerange is not None:
+        c_points = utils.get_gridcenter_time(c_points, var_da)
+        ss_timestep_duration = utils.calculate_timestep_duration(var_da)
+        n_ss_timesteps = math.ceil(seascape_timerange / ss_timestep_duration)
+        if not (n_ss_timesteps % 2):
+            n_ss_timesteps += 1 # Must be odd to have a center time.
+        
+        half_t_range = (n_ss_timesteps // 2) * ss_timestep_duration
+        ss_rtime_vals = np.linspace(
+            -half_t_range.astype('timedelta64[ns]').astype(int),
+            half_t_range.astype('timedelta64[ns]').astype(int),
+            n_ss_timesteps
+            ).astype('timedelta64[ns]')
+    else:
+        ss_rtime_vals = None
+
+    n_seascapes = c_points.shape[0]
     # Extract values of data in seascape and
     # stack them in a seascape_idx dimension
 
     ss_list = []
 
     for _, c_point in c_points.iterrows():
-        c_point_lon = c_point['lon']
-        c_point_lat = c_point['lat']
-        seascape = var_da.sel(
+        c_point_lon = c_point["lon"]
+        c_point_lat = c_point["lat"]
+        sel_dict = dict(
             lat=slice(
-                c_point_lat-(n_ss_gridpoints)*gridsize/2,
-                c_point_lat+(n_ss_gridpoints)*gridsize/2
+                c_point_lat-n_ss_gridpoints*gridsize/2,
+                c_point_lat+n_ss_gridpoints*gridsize/2
                 ),
             lon=slice(
-                c_point_lon-(n_ss_gridpoints)*gridsize/2,
-                c_point_lon+(n_ss_gridpoints)*gridsize/2
+                c_point_lon-n_ss_gridpoints*gridsize/2,
+                c_point_lon+n_ss_gridpoints*gridsize/2
                 )
-            )
+        )
+
+        if seascape_timerange is not None:
+            c_point_time = c_point["time"]
+            sel_dict["time"] = slice(
+                c_point_time-n_ss_timesteps*ss_timestep_duration/2,
+                c_point_time+n_ss_timesteps*ss_timestep_duration/2
+                )
+            
+        seascape = var_da.sel(sel_dict)
         
         try:
             # Change global coords to relative ss coords
-            seascape = seascape.assign_coords(
+            coord_dict = dict(
                 lat=ss_rlat_vals,
                 lon=ss_rlon_vals
             )
+            if seascape_timerange is not None:
+                coord_dict["time"] = ss_rtime_vals
+            seascape = seascape.assign_coords(coord_dict)
             
         except ValueError:
             # Add empty seascape to prevent size mismatches later
@@ -180,6 +208,7 @@ def create_xscp_da(
             seascape = utils.create_empty_seascape(
                 ss_rlon_vals=ss_rlon_vals,
                 ss_rlat_vals=ss_rlat_vals,
+                ss_rtime_vals=ss_rtime_vals
             )
 
         ss_list.append(seascape)
@@ -188,31 +217,64 @@ def create_xscp_da(
         ss_list, 
         pd.RangeIndex(
             n_seascapes,
-            name='seascape_idx'
+            name="seascape_idx"
             )
         )
 
     # Construct xr.DataArray
+    xscp_coords = {
+            # Center pixel coordinates for each ss
+            "c_lon": ("seascape_idx", c_points["lon"]),
+            "c_lat": ("seascape_idx", c_points["lat"]),
+            # Relative lat/lon with center pixel at (0,0)
+            "ss_rlon": ("ss_lon", ss_rlon_vals),
+            "ss_rlat": ("ss_lat", ss_rlat_vals),
+            # Real-world coordinates for each pixel in each ss
+            "ss_lon": (
+                ("seascape_idx","ss_lon"),
+                c_points["lon"].values[:, np.newaxis] + ss_rlon_vals
+                ),
+            "ss_lat": (
+                ("seascape_idx","ss_lat"),
+                c_points["lat"].values[:, np.newaxis] + ss_rlat_vals
+                ),
+        }
+    xscp_dims = ["seascape_idx", "ss_lon", "ss_lat"]
+    if seascape_timerange is not None:
+        xscp_coords["c_time"] = ("seascape_idx", c_points["time"])
+        xscp_coords["ss_rtime"] =  ("ss_time", ss_rtime_vals)
+        xscp_coords["ss_time"] = (
+            ("seascape_idx","ss_time"),
+            c_points["time"].values[:, np.newaxis] + ss_rtime_vals
+            )
+        xscp_dims.append("ss_time")
+    
+    # Make sure the data dimensions are ordered properly
+    xscp_data = xscp_data.transpose(*[
+        "seascape_idx",
+        "lat",
+        "lon",
+        "time"
+        ], missing_dims='ignore') # In case there is no time dimension
+    
+    # Debugging
+    # print("DATA\n")
+    # print(xscp_data)
+    # print("\n\nSS_LON\n")
+    # print(xscp_coords["ss_lon"])
+    # print("\n\nSS_RLON\n")
+    # print(xscp_coords["ss_rlon"])
+    # print("\n\nDIMS\n")
+    # print(xscp_dims)
+
     xscp_da = xr.DataArray(
         data=xscp_data,
-        coords={
-            # Center pixel coordinates for each ss
-            'c_lon': ('seascape_idx', c_points['lon']),
-            'c_lat': ('seascape_idx', c_points['lat']),
-            # Relative lat/lon with center pixel at (0,0)
-            'ss_rlon': ('ss_lon', ss_rlon_vals),
-            'ss_rlat': ('ss_lat', ss_rlat_vals),
-            # Real-world coordinates for each pixel in each ss
-            'ss_lon': (('seascape_idx','ss_lon'),\
-                       c_points["lat"].values[:, np.newaxis] + ss_rlat_vals),
-            'ss_lat': (('seascape_idx','ss_lat'),\
-                       c_points["lon"].values[:, np.newaxis] + ss_rlon_vals),
-        },
-        dims=['seascape_idx', 'ss_lon', 'ss_lat'],
+        coords=xscp_coords,
+        dims=xscp_dims,
         name=f"{var_da.name}",
         # TODO: Add attrs
         attrs = {
-            'seascape_gridsize': gridsize # See issue #13
+            "seascape_gridsize": gridsize # See issue #13
         },
     )
 

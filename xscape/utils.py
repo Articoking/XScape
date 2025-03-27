@@ -4,10 +4,44 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 
+def random_datetime64_generator(
+    n_datetimes: int,
+    start_date: np.datetime64,
+    end_date: np.datetime64,
+    ) -> np.ndarray:
+    """
+    Generates an array of random datetime64 values within a given range.
+
+    Parameters
+    ----------
+    n_datetimes : int
+        Number of random datetime64 values to generate.
+    start_date : np.datetime64
+        The earliest possible datetime.
+    end_date : np.datetime64
+        The latest possible datetime.
+
+    Returns
+    -------
+    np.ndarray
+        A 1D array of random datetime64 values.
+    """
+    # Convert datetime64 to integers (seconds since epoch)
+    start_int = start_date.astype('datetime64[s]').astype(np.int64)
+    end_int = end_date.astype('datetime64[s]').astype(np.int64)
+    
+    # Generate random integers in the given range
+    random_ints = np.random.randint(start_int, end_int, size=n_datetimes)
+    
+    # Convert back to datetime64
+    return random_ints.astype('datetime64[s]')
+    
+
 def generate_points(
     n_points: int,
     lon_range: tuple,
-    lat_range: tuple
+    lat_range: tuple,
+    time_range: tuple | None = None,
     ) -> pd.DataFrame:
     """
     Randomly generates a series of points.
@@ -18,12 +52,15 @@ def generate_points(
         The number of points to generate.
     lon_range, lat_range : tuple
         Lat. and lon. ranges defining the area in which to generate points.
+    time_range : tuple of np.datetime64, optional
+        Range of times to generate timestamps.
 
     Returns
     -------
     points : pd.DataFrame
         A pandas DataFrame object with "lat" and "lon" columns containing the
-        points as rows.
+        points as rows. If `time_range` is provided, contains an additional
+        "time" column.
     """
     lat_limit = 90 # Only allow latitudes in [-90, 90]
     lon_limit = 180 # Only allow longitudes in [-180, 180]
@@ -58,6 +95,14 @@ def generate_points(
         'lat': lats,
         'lon': lons
     })
+
+    if time_range is not None:
+        min_time, max_time = time_range
+        points["time"] = random_datetime64_generator(
+            n_points,
+            min_time, 
+            max_time
+            )
     return points
 
 def get_request_extent(
@@ -131,6 +176,49 @@ def get_gridcenter_points(
     c_points['lon'] = points['lon'].apply(lambda x: find_nearest(x, var_da['lon'].values))
     return c_points.drop_duplicates()
 
+def get_gridcenter_time(
+    dates: pd.DataFrame,
+    var_da: xr.DataArray,
+    ) -> pd.DataFrame:
+    """
+    Gets the nearest time coordinates in a grid for a series of datetime values.
+
+    Parameters
+    ----------
+    dates :pd.DataFrame
+        DataFrame with a "time" column.
+    var_da : xr.DataArray
+        Gridded data array with a "time" dimension.
+
+    Returns
+    -------
+    pd.DataFrame
+        A DataFrame equivalent to `dates` with the "time" column replaced with
+        the closest available time in `var_da` for each datetime in `dates`.
+        Any duplicate rows after the operation are dropped.
+    
+    Raises
+    ------
+    AttributeError
+        If `dates` has no "time" column or if `var_da` has no "time" coordinate.
+    """
+    
+    # Function to find the nearest time
+    def find_nearest_time(value, time_grid):
+        return time_grid[np.abs(time_grid - np.datetime64(value)).argmin()]
+    
+    if "time" not in var_da.coords:
+        raise AttributeError("No time coordinate found in background DataArray.")
+    if "time" not in dates.columns:
+        raise AttributeError("No time column found in the provided DataFrame.")
+
+    gridded_dates = dates.copy()
+    time_values = var_da["time"].values
+    
+    gridded_dates["time"] = dates["time"].apply(lambda x: find_nearest_time(x, time_values))
+    
+    return gridded_dates.drop_duplicates()
+
 def calculate_horizontal_gridsize(
     var_da: xr.DataArray,
     ) -> float:
@@ -161,16 +249,37 @@ def calculate_horizontal_gridsize(
     gridsize = (lat_gridsize + lon_gridsize) / 2
     return gridsize
 
+def calculate_timestep_duration(
+    var_da: xr.DataArray,
+    ) -> np.timedelta64:
+    """
+    Calculates the duration of each timestep in `var_da`.
+
+    Parameters
+    ----------
+    var_da : xr.DataArray
+        DataArray with a regularly spaced "time" coordinate.
+
+    Returns
+    -------
+    np.timedelta64
+        Average timedelta between each timestamp in `var_da`'s "time" coordinate.
+    """
+    time_coord = "ss_rtime" if "ss_time" in var_da.dims else "time"
+    ts_duration = np.diff(var_da[time_coord].values).mean()
+    return ts_duration
+
 def create_empty_seascape(
     ss_rlon_vals: np.ndarray,
     ss_rlat_vals: np.ndarray,
+    ss_rtime_vals: np.ndarray | None = None
     ) -> xr.DataArray:
     """
     Creates an empty seascape according to prescribed relative coordinates.
 
     Parameters
     ----------
-    ss_rlon_vals , ss_rlat_vals : np.ndarray
+    ss_rlon_vals , ss_rlat_vals, ss_rtime_vals : np.ndarray
         Relative grid values.
 
     Returns
@@ -178,13 +287,23 @@ def create_empty_seascape(
     xr.DataArray
         Seascape-like DataArray filled with NaN values.
     """
-    seascape = xr.DataArray(
-        data = np.full((len(ss_rlon_vals), len(ss_rlat_vals)), np.nan),
-        coords = {
-            "lon": ss_rlon_vals,
-            "lat": ss_rlat_vals,
-        },
-        dims = ["lon", "lat"],
-    )
+    data = np.full((len(ss_rlon_vals), len(ss_rlat_vals)), np.nan)
+    coords = {
+        "lon": ss_rlon_vals,
+        "lat": ss_rlat_vals,
+    }
+    dims = ["lon", "lat"]
+    if ss_rtime_vals is not None:
+        data = np.tile(
+            np.expand_dims(data, axis=-1),
+            (1, 1, len(ss_rtime_vals))\
+            )
+        coords["time"] = ss_rtime_vals
+        dims.append("time")
 
+    seascape = xr.DataArray(
+        data = data,
+        coords = coords,
+        dims = dims,
+    )
     return seascape
