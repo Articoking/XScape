@@ -17,6 +17,10 @@ class XScapeDAAccessor:
             self._gridsize = xarray_obj.attrs["seascape_gridsize"]
         else:
             self._gridsize = None
+        if "seascape_timestep" in xarray_obj.attrs.keys():
+            self._timestep = xarray_obj.attrs["seascape_timestep"]
+        else:
+            self._timestep = None
 
     @property
     def gridsize(self):
@@ -38,7 +42,8 @@ class XScapeDAAccessor:
                 }, 
                 index = self._obj["seascape_idx"].values
                 )  # Preserve `seascape_idx` as index if needed
-            
+            if "c_time" in self._obj.coords:
+                self._c_points["time"] = self._obj["c_time"].values
         return self._c_points
 
     def ss_sel(
@@ -80,5 +85,25 @@ class XScapeDAAccessor:
             raise ValueError(
                 "The specified point does not correspond to any seascape."
                 )
-        else:
-            return self._obj.isel(seascape_idx=closest_point_idx)
+        
+        # If time-referenced, choose appropriate seascape
+        # NOTE: many seascapes may share the same c_point but have different times.
+        if ("time" in point.index) and ("c_time" in self._obj.coords):
+            c_point = self.c_points.iloc[closest_point_idx]
+
+            # Filtering rows that match the lat/lon of `c_point`
+            matching_rows = self.c_points[
+                (self.c_points["lat"] == c_point["lat"]) \
+                & (self.c_points["lon"] == c_point["lon"])
+                ]
+
+            # Finding the row with the closest time
+            delta_ts = (matching_rows["time"] - c_point["time"]).abs()
+            closest_point_idx = delta_ts.idxmin()
+            # Check that `point` actually is in the seascape
+            if delta_ts[closest_point_idx] >= (self._timestep):
+                raise ValueError(
+                    "The specified point does not correspond to any seascape's timestamp."
+                    )
+
+        return self._obj.isel(seascape_idx=closest_point_idx)

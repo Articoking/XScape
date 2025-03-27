@@ -187,8 +187,15 @@ def test_create_xscp_da_timerange(
     seascape = xscp_da.xscp.ss_sel(point)
     assert seascape.c_lon == 0
     assert seascape.c_lat == 0
+    assert seascape.c_time == np.datetime64("2020-01-09")
 
     # Test selecting outside of range
     with pytest.raises(ValueError):
         point = sample_points_with_time.iloc[0]
+        xscp_da.xscp.ss_sel(point)
+    
+    # Test selecting outside of timerange
+    with pytest.raises(ValueError):
+        point = sample_points_with_time.iloc[0].copy()
+        point['time'] = np.datetime64("2020-01-14")
         xscp_da.xscp.ss_sel(point)

@@ -257,25 +257,16 @@ def create_xscp_da(
         "time"
         ], missing_dims='ignore') # In case there is no time dimension
     
-    # Debugging
-    # print("DATA\n")
-    # print(xscp_data)
-    # print("\n\nSS_LON\n")
-    # print(xscp_coords["ss_lon"])
-    # print("\n\nSS_RLON\n")
-    # print(xscp_coords["ss_rlon"])
-    # print("\n\nDIMS\n")
-    # print(xscp_dims)
+    xscp_attrs = {"seascape_gridsize": gridsize} # See issue #13
+    if seascape_timerange is not None:
+        xscp_attrs["seascape_timestep"] = ss_timestep_duration
 
     xscp_da = xr.DataArray(
         data=xscp_data,
         coords=xscp_coords,
         dims=xscp_dims,
         name=f"{var_da.name}",
-        # TODO: Add attrs
-        attrs = {
-            "seascape_gridsize": gridsize # See issue #13
-        },
+        attrs = xscp_attrs,
     )
 
     return xscp_da.chunk("auto")
