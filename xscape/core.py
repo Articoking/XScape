@@ -131,6 +131,12 @@ def create_xscp_da(
         each seascape.
     """
 
+    if (seascape_timerange is None) and ("time" in var_da.dims):
+        raise ValueError(
+            "var_da has a time dimension but seascape_timerange was not "\
+            "specified."
+            )
+
     gridsize = utils.calculate_horizontal_gridsize(var_da)
     n_ss_gridpoints = math.ceil(seascape_size / gridsize)
     if not (n_ss_gridpoints % 2):

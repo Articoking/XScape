@@ -139,7 +139,7 @@ def test_create_xscp_da(
         point = sample_points.iloc[0]
         xscp_da.xscp.ss_sel(point)
 
-def test_create_xscp_da_single_pixel(
+def test_create_xscp_da_1px(
     sample_var_da,
     sample_points,
     ):
@@ -165,11 +165,11 @@ def test_create_xscp_da_single_pixel(
         point = sample_points.iloc[0]
         xscp_da.xscp.ss_sel(point)
 
-def test_create_xscp_da_timerange(
+def test_create_xscp_da_1px_timerange(
     sample_var_da_with_time,
     sample_points_with_time,
     ):
-    """Tests creating an XScape DataArray with a seascape timerange."""
+    """Tests creating an XScape DA with a 1 pixel seascape w/ timerange."""
     xscp_da = xscp.create_xscp_da(
         points = sample_points_with_time,
         seascape_size = 0.5,
@@ -199,3 +199,59 @@ def test_create_xscp_da_timerange(
         point = sample_points_with_time.iloc[0].copy()
         point['time'] = np.datetime64("2020-01-14")
         xscp_da.xscp.ss_sel(point)
+
+def test_create_xscp_da_timerange(
+    sample_var_da_with_time,
+    sample_points_with_time,
+    ):
+    """Tests creating an XScape DA with a multi-pixel seascape w/ timerange."""
+    
+    with pytest.warns(
+        UserWarning,
+        match=r"Creating empty seascape *"):
+
+        xscp_da = xscp.create_xscp_da(
+            points = sample_points_with_time,
+            seascape_size = 2,
+            var_da = sample_var_da_with_time,
+            seascape_timerange=np.timedelta64(60, "h") # 2.5 days
+        )
+
+    assert xscp_da.sizes["seascape_idx"] == 5
+    assert xscp_da.sizes["ss_lat"] == 3
+    assert xscp_da.sizes["ss_lon"] == 3
+    assert xscp_da.sizes["ss_time"] == 3
+    
+    # Testing selection
+    point = sample_points_with_time.iloc[2]
+    seascape = xscp_da.xscp.ss_sel(point)
+    assert seascape.c_lon == 0
+    assert seascape.c_lat == 0
+    assert seascape.c_time == np.datetime64("2020-01-09")
+
+    # Test selecting outside of range
+    with pytest.raises(ValueError):
+        point = sample_points_with_time.iloc[0]
+        xscp_da.xscp.ss_sel(point)
+    
+    # Test selecting outside of timerange
+    with pytest.raises(ValueError):
+        point = sample_points_with_time.iloc[0].copy()
+        point['time'] = np.datetime64("2020-01-14")
+        xscp_da.xscp.ss_sel(point)
+
+def test_create_xscp_da_timerange_error(
+    sample_var_da_with_time,
+    sample_points_with_time,
+    ):
+    """Tests creating an xscp_da with no timerange when var_da has a time dim."""
+    
+    with pytest.raises(
+        ValueError,
+        match=r"var_da has a time dimension *"):
+
+        xscp.create_xscp_da(
+            points = sample_points_with_time,
+            seascape_size = 2,
+            var_da = sample_var_da_with_time,
+        )
