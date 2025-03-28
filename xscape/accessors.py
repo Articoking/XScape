@@ -66,6 +66,11 @@ class XScapeDAAccessor:
         -------
         xr.DataArray
             XScape-style DataArray containing only one seascape.
+        
+        Raises
+        ------
+        ValueError
+            If the point does not correspond to the center of any seascape.
         """
 
         """
