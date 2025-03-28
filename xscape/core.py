@@ -122,6 +122,10 @@ def create_xscp_da(
         Size (in degrees) of the seascape around each point.
     var_da : xr.DataArray
         Gridded background field from which we extract the seascapes.
+    seascape_timerange: np.timedelta64, optional
+        Duration of the seascape around each point's timestamp. If not an exact
+        multiple of the timestep duration, take the minimum number of timesteps
+        so that the specified duration is covered.
 
     Returns
     -------
@@ -129,6 +133,12 @@ def create_xscp_da(
         A DataArray indexed by `seascape_idx`, `ss_lon` and `ss_lat`. The latter
         two coordinates correspond to a relative reference frame centered on
         each seascape.
+
+    Raises
+    ------
+    ValueError
+        When `var_da` has a time dimension but no `seascape_timerange` is
+        specified.
     """
 
     if (seascape_timerange is None) and ("time" in var_da.dims):
