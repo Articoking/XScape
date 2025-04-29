@@ -4,6 +4,18 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 
+VERTICAL_DIM_NAMES = [
+    "depth",
+    "DEPTH",
+    "Depth",
+    "height",
+    "Height",
+    "HEIGHT",
+    # TODO: Add any other standard names
+    ]
+
+VERTICAL_COORD_NAMES = VERTICAL_DIM_NAMES
+
 def random_datetime64_generator(
     n_datetimes: int,
     start_date: np.datetime64,
@@ -218,6 +230,48 @@ def get_gridcenter_time(
     gridded_dates["time"] = dates["time"].apply(lambda x: find_nearest_time(x, time_values))
     
     return gridded_dates.drop_duplicates()
+
+def get_vert_dimname(
+    var_da: xr.DataArray,
+    ) -> str | None:
+    """
+    Gets the name of the dimension representing the vertical dimension.
+
+    Parameters
+    ----------
+    var_da : xr.DataArray
+        Gridded data array.
+
+    Returns
+    -------
+    str | None
+        Name of the dimension if it exists.
+    """
+    list_dims = list(var_da.dims)
+    dim_set = set(VERTICAL_DIM_NAMES).intersection(list_dims)
+    vert_dimname = None if len(dim_set) == 0 else next(iter(dim_set))
+    return vert_dimname
+
+def get_vert_coordname(
+    var_da: xr.DataArray,
+    ) -> str | None:
+    """
+    Gets the name of the coordinate representing the vertical dimension.
+
+    Parameters
+    ----------
+    var_da : xr.DataArray
+        Gridded data array.
+
+    Returns
+    -------
+    str | None
+        Name of the dimension if it exists.
+    """
+    list_coords = list(var_da.coords)
+    coord_set = set(VERTICAL_COORD_NAMES).intersection(list_coords)
+    vert_dimname = None if len(coord_set) == 0 else next(iter(coord_set))
+    return vert_dimname
 
 def calculate_horizontal_gridsize(
     var_da: xr.DataArray,

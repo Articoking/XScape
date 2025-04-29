@@ -108,7 +108,8 @@ def create_xscp_da(
     points: pd.DataFrame,
     seascape_size: float,
     var_da:xr.DataArray,
-    seascape_timerange: np.timedelta64 | None = None
+    seascape_timerange: np.timedelta64 | None = None,
+    get_column: bool = False
     ) -> xr.DataArray:
     """
     Crops and packages together a series of seascapes.
@@ -126,6 +127,9 @@ def create_xscp_da(
         Duration of the seascape around each point's timestamp. If not an exact
         multiple of the timestep duration, take the minimum number of timesteps
         so that the specified duration is covered.
+    get_column: bool, optional
+        Whether to include a vertical dimension in the seascape. If True,
+        `var_da` must have a dimension and coordinate named "depth" or "height".
 
     Returns
     -------
@@ -146,6 +150,9 @@ def create_xscp_da(
             "var_da has a time dimension but seascape_timerange was not "\
             "specified."
             )
+    
+    vert_dimname = utils.get_vert_dimname(var_da)
+    vert_coordname = utils.get_vert_coordname(var_da)
 
     gridsize = utils.calculate_horizontal_gridsize(var_da)
     n_ss_gridpoints = math.ceil(seascape_size / gridsize)
@@ -175,9 +182,20 @@ def create_xscp_da(
         ss_rtime_vals = None
 
     n_seascapes = c_points.shape[0]
+
+    if get_column or (vert_dimname is None):
+        background_da = var_da
+    else:
+        # Select vertical level
+        warning_msg = "Automatically selecting the first level in dimension: " \
+            f"{vert_dimname}.\n" \
+            "Consider setting get_column=True or select a vertical level manually."
+        warnings.warn(warning_msg)
+        background_da = var_da.isel({vert_dimname: 0})
+        
+    
     # Extract values of data in seascape and
     # stack them in a seascape_idx dimension
-
     ss_list = []
 
     for _, c_point in c_points.iterrows():
@@ -201,7 +219,7 @@ def create_xscp_da(
                 c_point_time+n_ss_timesteps*ss_timestep_duration/2
                 )
             
-        seascape = var_da.sel(sel_dict)
+        seascape = background_da.sel(sel_dict)
         
         try:
             # Change global coords to relative ss coords
@@ -264,14 +282,22 @@ def create_xscp_da(
             c_points["time"].values[:, np.newaxis] + ss_rtime_vals
             )
         xscp_dims.append("ss_time")
+    if get_column:
+        xscp_coords[vert_coordname] = (
+            vert_dimname,
+            background_da[vert_coordname].data
+            )
+        xscp_dims.append(vert_dimname)
+
     
     # Make sure the data dimensions are ordered properly
     xscp_data = xscp_data.transpose(*[
         "seascape_idx",
         "lat",
         "lon",
-        "time"
-        ], missing_dims='ignore') # In case there is no time dimension
+        "time",
+        vert_dimname
+        ], missing_dims='ignore') # In case there is no time/vertical dimension
     
     xscp_attrs = {"seascape_gridsize": gridsize} # See issue #13
     if seascape_timerange is not None:
