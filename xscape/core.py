@@ -190,7 +190,7 @@ def create_xscp_da(
         warning_msg = "Automatically selecting the first level in dimension: " \
             f"{vert_dimname}.\n" \
             "Consider setting get_column=True or select a vertical level manually."
-        warnings.warn(warning_msg)
+        warnings.warn(warning_msg, stacklevel=2)
         background_da = var_da.isel({vert_dimname: 0})
         
     
@@ -238,7 +238,7 @@ def create_xscp_da(
                 f"(lat={c_point["lat"]}, lon={c_point["lon"]})." \
                 "This may be due to the corresponding point being outside " \
                 "var_da's grid or too close to its edge."
-            warnings.warn(warning_msg)
+            warnings.warn(warning_msg, stacklevel=2)
             seascape = utils.create_empty_seascape(
                 ss_rlon_vals=ss_rlon_vals,
                 ss_rlat_vals=ss_rlat_vals,
