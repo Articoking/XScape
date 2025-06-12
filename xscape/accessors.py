@@ -2,9 +2,13 @@
 
 # https://docs.xarray.dev/en/stable/internals/extending-xarray.html
 
+import math
+
 import numpy as np
 import pandas as pd
 import xarray as xr
+from pyproj import Proj, Transformer
+from scipy.interpolate import griddata
 
 import xscape.utils as utils
 
@@ -112,3 +116,75 @@ class XScapeDAAccessor:
                     )
 
         return self._obj.isel(seascape_idx=closest_point_idx)
+    
+    
+    def to_km_grid(
+        self,
+        gridsize: float,
+        extent: float,
+        ) -> xr.DataArray:
+        """
+        Convert an XScape DataArray to a kilometric grid.
+
+        Parameters
+        ----------
+        gridsize : float
+            Size of the new grid in kilometers.
+        extent : float
+            extent of the new grid in kilometers.
+
+        Returns
+        -------
+        xr.DataArray
+            XScape DataArray regridded in the specified a kilometric grid.
+        """
+
+        assert gridsize <= extent
+
+        patches = []
+        n_ss_gridpoints = math.ceil(extent / gridsize)
+        if not (n_ss_gridpoints % 2):
+            n_ss_gridpoints += 1 # Must be odd to have a center pixel.
+        half_range = (n_ss_gridpoints // 2) * gridsize
+        lin = np.linspace(-half_range, half_range, n_ss_gridpoints)
+        km_x, km_y = np.meshgrid(lin, lin)
+
+
+        for ss_idx in range(self._obj.sizes["seascape_idx"]):
+            c_lat = self.c_points["lat"].iloc[ss_idx]
+            c_lon = self.c_points["lon"].iloc[ss_idx]
+            # Projector: Azimuthal Equidistant centered at the patch center
+            proj_aeqd = Proj(proj='aeqd', lat_0=c_lat, lon_0=c_lon, units='km')
+            transformer = Transformer.from_proj("epsg:4326", proj_aeqd, always_xy=True)
+
+            # Get lat/lon for the patch
+            lat = self._obj["ss_lat"].isel(seascape_idx=ss_idx).values
+            lon = self._obj["ss_lon"].isel(seascape_idx=ss_idx).values
+            lon2d, lat2d = np.meshgrid(lon, lat)
+
+            # Flatten and project
+            x_km, y_km = transformer.transform(lon2d.flatten(), lat2d.flatten())
+            data_patch = self._obj.isel(seascape_idx=ss_idx).values
+            points = np.stack([x_km.ravel(), y_km.ravel()], axis=1)
+            values = data_patch.ravel()
+
+            grid_patch = griddata(points, values, (km_x, km_y), method='linear')
+
+            patches.append(grid_patch)
+
+        # Stack into new DataArray
+        out = xr.DataArray(
+            data=np.stack(patches),
+            dims=("seascape_idx", "ss_y", "ss_x"),
+            coords={
+                "c_lat": self._obj.coords["c_lat"],
+                "c_lon": self._obj.coords["c_lon"],
+                "ss_y": lin,
+                "ss_x": lin,
+            },
+            name=self._obj.name if self._obj.name else None,
+            attrs=self._obj.attrs
+        )
+        out.attrs["is_kilometric"] = True
+        out.attrs["seascape_gridsize"] = gridsize
+        return out
