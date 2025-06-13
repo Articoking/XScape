@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 from pyproj import Proj, Transformer
-from scipy.interpolate import griddata
+from scipy.interpolate import griddata, RegularGridInterpolator
 
 import xscape.utils as utils
 
@@ -153,22 +153,35 @@ class XScapeDAAccessor:
         for ss_idx in range(self._obj.sizes["seascape_idx"]):
             c_lat = self.c_points["lat"].iloc[ss_idx]
             c_lon = self.c_points["lon"].iloc[ss_idx]
-            # Projector: Azimuthal Equidistant centered at the patch center
+            # Azimuthal Equidistant projection centered on each seascape
             proj_aeqd = Proj(proj='aeqd', lat_0=c_lat, lon_0=c_lon, units='km')
-            transformer = Transformer.from_proj("epsg:4326", proj_aeqd, always_xy=True)
+            transformer = Transformer.from_proj(
+                "epsg:4326",
+                proj_aeqd,
+                always_xy=True)
 
             # Get lat/lon for the patch
-            lat = self._obj["ss_lat"].isel(seascape_idx=ss_idx).values
-            lon = self._obj["ss_lon"].isel(seascape_idx=ss_idx).values
-            lon2d, lat2d = np.meshgrid(lon, lat)
+            lat = self._obj["ss_lat"].isel(seascape_idx=ss_idx)
+            lon = self._obj["ss_lon"].isel(seascape_idx=ss_idx)
 
-            # Flatten and project
-            x_km, y_km = transformer.transform(lon2d.flatten(), lat2d.flatten())
+            # Flatten and project grid
             data_patch = self._obj.isel(seascape_idx=ss_idx).values
-            points = np.stack([x_km.ravel(), y_km.ravel()], axis=1)
-            values = data_patch.ravel()
+            interpolator = RegularGridInterpolator(
+                (lat, lon),
+                data_patch,
+                bounds_error=True,
+                fill_value=np.nan
+                )
 
-            grid_patch = griddata(points, values, (km_x, km_y), method='linear')
+            # Calculate lat/lon for the kilometric grid
+            lon_target, lat_target = transformer.transform(
+                km_x.ravel(),
+                km_y.ravel(),
+                direction="INVERSE"
+                )
+            
+            interp_vals = interpolator(np.stack([lat_target, lon_target], axis=-1))
+            grid_patch = interp_vals.reshape(km_x.shape)
 
             patches.append(grid_patch)
 

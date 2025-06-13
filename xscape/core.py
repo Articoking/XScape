@@ -109,7 +109,8 @@ def create_xscp_da(
     seascape_size: float,
     var_da:xr.DataArray,
     seascape_timerange: np.timedelta64 | None = None,
-    get_column: bool = False
+    get_column: bool = False,
+    compute_result: bool = True,
     ) -> xr.DataArray:
     """
     Crops and packages together a series of seascapes.
@@ -130,7 +131,11 @@ def create_xscp_da(
     get_column: bool, optional
         Whether to include a vertical dimension in the seascape. If True,
         `var_da` must have a dimension and coordinate named "depth" or "height".
-
+    compute_result: bool, optional
+        Whether to apply `.compute()` to the final result, which loads it into
+        memory. Massively shortens subsequent computations at the cost of a
+        higher memory footprint. Defaults to True.
+        
     Returns
     -------
     xr.DataArray
@@ -309,6 +314,9 @@ def create_xscp_da(
         dims=xscp_dims,
         name=f"{var_da.name}",
         attrs = xscp_attrs,
-    )
+    ).chunk("auto")
 
-    return xscp_da.chunk("auto")
+    if compute_result:
+        return xscp_da.compute()
+    else:
+        return xscp_da
