@@ -1,6 +1,6 @@
 [project]
 name = "xscape"
-version = "0.2.0"
+version = "0.3.0"
 description = "A Python library for recovering the seascape around a set of geographical points, based on Xarray."
 authors = [
     {name = "Articoking"}
