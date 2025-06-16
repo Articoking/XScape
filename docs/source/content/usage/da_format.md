@@ -32,3 +32,13 @@ During the creation process no checks are made to verify that every point is act
 
 When selecting a specific seascape using the `xscp.ss_sel(point)` method on a `DataArray`, XScape finds the seascape whose center pixel is the shortest distance from the specified `point`, and verifies that it is indeed inside the center pixel.
 If a `point` is not inside the closest seascape's center pixel, then it means that said `point` does not correspond to any seascape in the `DataArray`, and so XScape will raise a `ValueError`.
+
+## Kilometric grids
+
+Since version 0.3, there is the possibility of converting a seascape from its original lat/lon grid into a kilometric one using the `xscp.to_km_grid` method.
+
+This method automatically interpolates each seascape to a grid centered on the position of the center pixel, and modifies the coordinates accordingly.
+Thus, the `ss_lon` and `ss_lat` coordinates are replaced by `ss_x` and `ss_y`, which point directly east and north from the point defined by `c_lat` and `c_lon`.
+The relative coordinates are eliminated since the kilometric grid is already relative.
+
+The change in coordinates is also reflected in the dimension names, with `ss_lon` and `ss_lat` becoming `ss_x` and `ss_y`.
