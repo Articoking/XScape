@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 from pyproj import Proj, Transformer
-from scipy.interpolate import griddata, RegularGridInterpolator
+from scipy.interpolate import RegularGridInterpolator
 
 import xscape.utils as utils
 
