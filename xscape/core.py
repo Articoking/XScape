@@ -1,108 +1,13 @@
 """Core functionality of XScape."""
 
 import math
-from typing import List
 import warnings
 
 import xarray as xr
 import pandas as pd
 import numpy as np
-import copernicusmarine as cmems
 
 import xscape.utils as utils
-
-GLORYS_GRIDSIZE = 1/12
-
-def get_glorys_ds(
-    points: pd.DataFrame,
-    seascape_size: float,
-    variables: List[str],
-    start_datetime: str,
-    end_datetime: str,
-    ) -> xr.Dataset:
-    """
-    Gets GLORYS data for the specified region/time.
-
-    Parameters
-    ----------
-    points : pd.DataFrame
-        DataFrame of points as rows with "lat" and "lon" columns.
-    seascape_size : float
-        Size (in degrees) of the seascape around each point.
-    variables : list of str
-        GLORYS variable names to include in the returned data.
-    start_datetime : str
-        Earliest date for which to get data.
-    end_datetime : str
-        Latest date for which to get data.
-
-    Returns
-    -------
-    xr.Dataset
-        Dataset in the same format as that returned by `copernicusmarine`.
-    """
-
-    gridsize = GLORYS_GRIDSIZE
-    extent = utils.get_request_extent(
-        points,
-        seascape_size,
-        gridsize
-        )
-
-    data_request = {
-    "dataset_id": "cmems_mod_glo_phy_my_0.083deg_P1D-m",
-    "variables": variables,
-    "start_datetime": start_datetime,
-    "end_datetime" : end_datetime,
-    "maximum_latitude": extent["maximum_latitude"],
-    "minimum_latitude": extent["minimum_latitude"],
-    "maximum_longitude": extent["maximum_longitude"],
-    "minimum_longitude": extent["minimum_longitude"],
-    }
-    glorys_da = cmems.open_dataset(**data_request)\
-        .rename({
-            "latitude": "lat",
-            "longitude": "lon"
-        })
-    return glorys_da
-
-def get_glorys_var(
-    points: pd.DataFrame,
-    seascape_size: float,
-    variable: str,
-    start_datetime: str,
-    end_datetime: str,
-    ) -> xr.Dataset:
-    """
-    Gets GLORYS data *for a single variable* for the specified region/time.
-
-    Parameters
-    ----------
-    points : pd.DataFrame
-        DataFrame of points as rows with "lat" and "lon" columns.
-    seascape_size : float
-        Size (in degrees) of the seascape around each point.
-    variables : list of str
-        GLORYS variable names to include in the returned data.
-    start_datetime : str
-        Earliest date for which to get data.
-    end_datetime : str
-        Latest date for which to get data.
-
-    Returns
-    -------
-    xr.Dataset
-        Dataset in the same format as that returned by `copernicusmarine`.
-    """
-    glorys_da = get_glorys_ds(
-        points = points,
-        seascape_size = seascape_size,
-        variables = [variable],
-        start_datetime = start_datetime,
-        end_datetime = end_datetime
-    )[variable]
-
-    return glorys_da
 
 def create_xscp_da(
     points: pd.DataFrame,

@@ -42,3 +42,12 @@ Thus, the `ss_lon` and `ss_lat` coordinates are replaced by `ss_x` and `ss_y`, w
 The relative coordinates are eliminated since the kilometric grid is already relative.
 
 The change in coordinates is also reflected in the dimension names, with `ss_lon` and `ss_lat` becoming `ss_x` and `ss_y`.
+
+Version 0.4 introduced natively kilometric grids, which don't introduce any shift between the points and the center of seascape.
+Below you will find a table comparing the different types of XScape `DataArray`s.
+
+| **Type of grid**        | **Depth dimension** |  **Time dimension** | **Exact seascape position** | **Interpolated** |
+|-------------------------|:-------------------:|:-------------------:|:---------------------------:|:----------------:|
+| Angular                 |       Optional      |       Optional      |              No             |        No        |
+| Kilometric from angular |       Optional      |       Optional      |              No             |        Yes       |
+| Natively kilometric     | Not yet implemented | Not yet implemented |             Yes             |        Yes       |

@@ -124,7 +124,7 @@ class XScapeDAAccessor:
         extent: float,
         ) -> xr.DataArray:
         """
-        Convert an XScape DataArray to a kilometric grid.
+        Convert an XScape DataArray in lat/lon coordinates to a kilometric grid.
 
         Parameters
         ----------
@@ -136,7 +136,7 @@ class XScapeDAAccessor:
         Returns
         -------
         xr.DataArray
-            XScape DataArray regridded in the specified a kilometric grid.
+            XScape DataArray regridded in the specified kilometric grid.
         """
 
         assert gridsize <= extent

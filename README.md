@@ -45,7 +45,7 @@ import xarray as xr
 import xscape as xscp
 
 n_points = 10
-points = xscp.generate_points(
+points = xscp.testing_utils.generate_points(
     n_points,
     lon_range = (-50, 20),
     lat_range = (-60, 0)
@@ -59,7 +59,7 @@ XScape uses this information to avoid requesting an area much larger than that c
 ```python
 seascape_size = 1 # degrees
 
-glorys_var = xscp.get_glorys_var(
+glorys_var = xscp.testing_utils.get_glorys_var(
     points,
     seascape_size,
     'thetao', # Temperature variable name

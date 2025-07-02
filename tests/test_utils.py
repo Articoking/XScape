@@ -16,7 +16,7 @@ def sample_points():
 
 def test_generate_points():
     """Test simple point generation."""
-    points = xscp.generate_points(
+    points = xscp.testing_utils.generate_points(
         n_points,
         lon_range=(min_lon, max_lon),
         lat_range=(min_lat, max_lat),
@@ -29,7 +29,7 @@ def test_generate_points():
 
 def test_generate_points_reverse():
     """Test generating with reverse bounds."""
-    points = xscp.generate_points(
+    points = xscp.testing_utils.generate_points(
         n_points,
         lon_range=(max_lon, min_lon),
         lat_range=(max_lat, min_lon),
