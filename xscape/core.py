@@ -6,6 +6,8 @@ import warnings
 import xarray as xr
 import pandas as pd
 import numpy as np
+from pyproj import Proj, Transformer
+from scipy.interpolate import RegularGridInterpolator
 
 import xscape.utils as utils
 
@@ -167,21 +169,21 @@ def create_xscp_da(
 
     # Construct xr.DataArray
     xscp_coords = {
-            # Center pixel coordinates for each ss
-            "c_lon": ("seascape_idx", c_points["lon"]),
-            "c_lat": ("seascape_idx", c_points["lat"]),
-            # Relative lat/lon with center pixel at (0,0)
-            "ss_rlon": ("ss_lon", ss_rlon_vals),
-            "ss_rlat": ("ss_lat", ss_rlat_vals),
-            # Real-world coordinates for each pixel in each ss
-            "ss_lon": (
-                ("seascape_idx","ss_lon"),
-                c_points["lon"].values[:, np.newaxis] + ss_rlon_vals
-                ),
-            "ss_lat": (
-                ("seascape_idx","ss_lat"),
-                c_points["lat"].values[:, np.newaxis] + ss_rlat_vals
-                ),
+        # Center pixel coordinates for each ss
+        "c_lon": ("seascape_idx", c_points["lon"]),
+        "c_lat": ("seascape_idx", c_points["lat"]),
+        # Relative lat/lon with center pixel at (0,0)
+        "ss_rlon": ("ss_lon", ss_rlon_vals),
+        "ss_rlat": ("ss_lat", ss_rlat_vals),
+        # Real-world coordinates for each pixel in each ss
+        "ss_lon": (
+            ("seascape_idx","ss_lon"),
+            c_points["lon"].values[:, np.newaxis] + ss_rlon_vals
+            ),
+        "ss_lat": (
+            ("seascape_idx","ss_lat"),
+            c_points["lat"].values[:, np.newaxis] + ss_rlat_vals
+            ),
         }
     xscp_dims = ["seascape_idx", "ss_lon", "ss_lat"]
     if seascape_timerange is not None:
@@ -220,6 +222,157 @@ def create_xscp_da(
         name=f"{var_da.name}",
         attrs = xscp_attrs,
     ).chunk("auto")
+
+    if compute_result:
+        return xscp_da.compute()
+    else:
+        return xscp_da
+    
+def create_xscp_kilometric_da(
+    points: pd.DataFrame,
+    seascape_extent: float,
+    seascape_gridsize: float,
+    var_da:xr.DataArray,
+    seascape_timerange: np.timedelta64 | None = None,
+    get_column: bool = False,
+    compute_result: bool = True,
+    ) -> xr.DataArray:
+    """
+    Crops and packages together a series of seascapes.
+
+    Parameters
+    ----------
+    points : pd.DataFrame
+        DataFrame of points as rows with "lat" and "lon" columns. If
+        `seascape_timerange` is specified it must also have a "time" column.
+    seascape_extent : float
+        Size (in kilometers) of the seascape around each point.
+    seascape_gridsize : float
+        Size (in kilometers) of each pixel in the target grid.
+    var_da : xr.DataArray
+        Gridded background field from which we extract the seascapes.
+    seascape_timerange: np.timedelta64, optional
+        Not yet implemented. Duration of the seascape around each point's timestamp.
+    get_column: bool, optional
+        Not yet implemented. Whether to include a vertical dimension in the seascape. If True,
+        `var_da` must have a dimension and coordinate named "depth" or "height".
+    compute_result: bool, optional
+        Whether to apply `.compute()` to the final result, which loads it into
+        memory. Massively shortens subsequent computations at the cost of a
+        higher memory footprint. Defaults to True.
+        
+    Returns
+    -------
+    xr.DataArray
+        A DataArray indexed by `seascape_idx`, `ss_x` and `ss_y`. The latter
+        two coordinates correspond to a relative reference frame centered on
+        each point in `points`.
+
+    Raises
+    ------
+    NotImplementedError
+        When `seascape_timerange` is specified or when `get_column` is True.
+    """
+
+    if (seascape_timerange is not None) or (get_column is True):
+        raise NotImplementedError
+    
+    vert_dimname = utils.get_vert_dimname(var_da)
+    vert_coordname = utils.get_vert_coordname(var_da)
+
+    # TODO: COMPLETE THIS FUNCTION
+    n_ss_gridpoints = math.ceil(seascape_extent / seascape_gridsize)
+    if not (n_ss_gridpoints % 2):
+        n_ss_gridpoints += 1 # Must be odd to have a center pixel.
+    half_range = (n_ss_gridpoints // 2) * seascape_gridsize
+    lin = np.linspace(-half_range, half_range, n_ss_gridpoints)
+    km_x, km_y = np.meshgrid(lin, lin)
+
+    n_seascapes = points.shape[0]
+
+    if get_column or (vert_dimname is None):
+        background_da = var_da
+    else:
+        # Select vertical level
+        warning_msg = "Automatically selecting the first level in dimension: " \
+            f"{vert_dimname}.\n" \
+            "Consider setting get_column=True or select a vertical level manually."
+        warnings.warn(warning_msg, stacklevel=2)
+        background_da = var_da.isel({vert_dimname: 0}).compute() # Compute needed for speed
+    
+    ss_list = []
+
+
+    for idx, c_point in points.iterrows():
+
+        c_lat = c_point["lat"]
+        c_lon = c_point["lon"]
+
+        # Patch around point to avoid loading the whole background into memory
+        # Size in degrees
+        patch_size = 1 # Should be okay for extents up to 100km
+        # TODO: Dynamically adjust patch_size according to seascape extent
+        sel_dict = dict(
+            lat=slice(
+                c_lat-n_ss_gridpoints*patch_size/2,
+                c_lat+n_ss_gridpoints*patch_size/2
+                ),
+            lon=slice(
+                c_lon-n_ss_gridpoints*patch_size/2,
+                c_lon+n_ss_gridpoints*patch_size/2
+                )
+        )
+
+        background_patch = background_da.sel(sel_dict)
+
+        # Azimuthal Equidistant projection centered on each seascape
+        proj_aeqd = Proj(proj='aeqd', lat_0=c_lat, lon_0=c_lon, units='km')
+        transformer = Transformer.from_proj(
+            "epsg:4326",
+            proj_aeqd,
+            always_xy=True)
+        
+        # Build interpolator
+        interpolator = RegularGridInterpolator(
+            (background_patch["lat"], background_patch["lon"]),
+            background_patch.values,
+            bounds_error=True,
+            fill_value=np.nan
+            )
+        
+        # Calculate lat/lon for the kilometric grid
+        lon_target, lat_target = transformer.transform(
+            km_x.ravel(),
+            km_y.ravel(),
+            direction="INVERSE"
+            )
+        
+        # Interpolate
+        interp_vals = interpolator(np.stack([lat_target, lon_target], axis=-1))
+        seascape = interp_vals.reshape(km_x.shape)
+        ss_list.append(seascape)
+
+    # Stack into new DataArray
+    xscp_data = np.stack(ss_list)
+    xscp_coords = {
+        "c_lat": ("seascape_idx", points["lat"]),
+        "c_lon": ("seascape_idx", points["lon"]),
+        "ss_y": lin,
+        "ss_x": lin,
+    }
+    xscp_dims = ["seascape_idx", "ss_y", "ss_x"]
+    xscp_attrs = {
+        "seascape_gridsize": seascape_gridsize,
+        "is_kilometric": True
+        }
+
+    xscp_da = xr.DataArray(
+            data=xscp_data,
+            coords=xscp_coords,
+            dims=xscp_dims,
+            name=f"{var_da.name}",
+            attrs = xscp_attrs,
+        ).chunk("auto")
 
     if compute_result:
         return xscp_da.compute()
