@@ -240,7 +240,7 @@ def create_xscp_da(
             # Add empty seascape to prevent size mismatches later
             # See issue #7
             warning_msg = "Creating empty seascape for c_point: "\
-                f"(lat={c_point["lat"]}, lon={c_point["lon"]})." \
+                f"(lat={c_point['lat']}, lon={c_point['lon']})." \
                 "This may be due to the corresponding point being outside " \
                 "var_da's grid or too close to its edge."
             warnings.warn(warning_msg, stacklevel=2)
